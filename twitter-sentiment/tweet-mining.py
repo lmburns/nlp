@@ -3,9 +3,6 @@
 
 # ## Sentiment Analysis of Tweets
 
-# In[12]:
-
-
 import tweepy
 from tweepy import Cursor
 import re
@@ -22,10 +19,6 @@ plt.rcParams['figure.dpi'] = 300
 plt.style.use(['dark_background'])
 get_ipython().run_line_magic('matplotlib', 'inline')
 
-
-# In[4]:
-
-
 # Authentication requirements
 app = pd.read_csv('../keys.csv')
 
@@ -34,21 +27,13 @@ consumerSecret = app['SecretKey'][0]
 accessToken = app['Token'][0]
 accessTokenSecret = app['SecetToken'][0] # Misspelled secret on accident
 
-
-# In[5]:
-
-
 authenticate = tweepy.OAuthHandler(consumerKey, consumerSecret)
 
 authenticate.set_access_token(accessToken, accessTokenSecret)
 
 api = tweepy.API(auth_handler=authenticate, wait_on_rate_limit=True)
 
-
 # ### Scraping Twitter
-
-# In[ ]:
-
 
 text_query = 'great reset'
 max_tweets = 2000
@@ -66,17 +51,12 @@ tweet_df = pd.DataFrame(tweet_list)
 
 tweet_df.shape
 
-
-# In[ ]:
-
-
 cols = ['text', 'tweet_created', 'tweet_id', 'username', 'screen_name', 'location', 'user_descr', 'verified', 'follower_num', 'friends_num', 'favs_num', 'status_num', 'listed_num', 'user_created']
 
 tweets_df.columns = cols
 
 # tweet_df.to_csv('great-reset-1000.csv', index=False, header=tweet_df.columns.values)
 tweet_df.head()
-
 
 # - `tweet.text`: text content of tweet
 # - `tweet.created_at`: date tweet was created_at
@@ -92,15 +72,8 @@ tweet_df.head()
 
 # ### Import Saved CSV
 
-# In[7]:
-
-
 df = pd.read_csv('../great-reset-2000.csv')
 df.head()
-
-
-# In[9]:
-
 
 def cleaned(df, col):
     df = df.astype(str).apply(lambda x: x.str.encode('ascii', 'ignore').str.decode('ascii')) # Remove emojis
@@ -122,11 +95,7 @@ df['text'] = cleaned(df, 'text')
 
 df.head()
 
-
 # ## TextBlob
-
-# In[10]:
-
 
 def text_blob(df, col):
     testimonial = [TextBlob(str(item)) for item in df[col]]
@@ -138,11 +107,7 @@ def text_blob(df, col):
 df = text_blob(df, 'text')
 df.head()
 
-
 # ## WordCloud
-
-# In[21]:
-
 
 # String of all tweets joined together
 all_words = ' '.join([str(tweet) for tweet in df['text']])
@@ -156,11 +121,7 @@ plt.figure(figsize=(20, 10), dpi=300)
 plt.imshow(word_cloud, interpolation='bilinear')
 plt.axis('off');
 
-
 # ### Classifying Polarity
-
-# In[23]:
-
 
 def classify(polarity):
     if polarity < 0:
@@ -173,70 +134,35 @@ def classify(polarity):
 df['classification'] = df['polarity'].apply(classify)
 df.head()
 
-
 # ### Exploratory Data Analysis
 
-# In[25]:
-
-
 df['classification'].value_counts()
-
-
-# In[29]:
-
 
 plt.figure(figsize=(10, 6), dpi=300)
 sns.countplot(x='classification', data=df, palette='Dark2_r').set_title('Tweet Sentiment Classification Value Counts');
 
-
 # ### Negative Tweet Previews
-
-# In[31]:
-
 
 df.loc[df['polarity'] < 0, ['text', 'polarity', 'classification']].drop_duplicates(keep='first').sort_values(by='polarity')[:10]
 
-
 # ### Positive Tweet Previews
-
-# In[32]:
-
 
 df.loc[df['polarity'] > 0, ['text', 'polarity', 'classification']].drop_duplicates(keep='first').sort_values(by='polarity', ascending=False)[:10]
 
-
 # ### Polarity vs Subjectivity
-
-# In[35]:
-
 
 plt.figure(figsize=(10, 6), dpi=300)
 sns.scatterplot(x=df['polarity'], y=df['subjectivity'], color='BlueViolet').set_title('Polarity vs Subjectivity of Tweets');
 
-
 # ### Distribution of Polarity
-
-# In[36]:
-
 
 plt.figure(figsize=(10, 6), dpi=300)
 sns.boxplot(x='polarity', data=df, palette='Dark2').set_title('Polarity Distribution');
 
-
 # ### Verified Twitter Positive vs Negative
-
-# In[39]:
-
 
 df_pn = df[df['classification'] != 'neu']
 
 plt.figure(figsize=(10, 6), dpi=300)
 sns.boxplot(x='verified', y='polarity', hue='classification', 
             data=df_pn, palette='Dark2').set_title('Positive & Negative Sentiment of Verified Twitter Users');
-
-
-# In[ ]:
-
-
-
-
