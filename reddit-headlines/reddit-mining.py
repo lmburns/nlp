@@ -1,6 +1,19 @@
-#!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
+# ---
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.9.1
+#   kernelspec:
+#     display_name: Python 3
+#     name: python3
+# ---
 
+# +
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,6 +33,7 @@ from string import punctuation
 from collections import Counter
 
 plt.style.use(['dark_background'])
+# -
 
 # ----
 # ----
@@ -33,6 +47,7 @@ reddit = praw.Reddit(client_id='##########',
                      password='##########',
                      user_agent='##########')
 
+# +
 headlines = {}
 subreddit = reddit.subreddit('worldnews').top(limit=None)
 
@@ -56,10 +71,14 @@ for submission in subreddit:
     display.clear_output()
     print(f'Headlines: {len(headlines)}')
 
+
+# -
+
 # ----
 # ### Save and Reload Headlines Dictionary
 # ----
 
+# +
 def save_obj(obj, name ):
     with open('data/'+ name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
@@ -71,6 +90,7 @@ def load_obj(name ):
 # pickle.dump(headlines, open('headlines.pkl', 'wb'))
 data = load_obj('headlines')
 type(data)
+# -
 
 next(iter(data.keys()))
 
@@ -85,6 +105,7 @@ df.head(1)
 # ----
 # ----
 
+# +
 df = df.astype(str).apply(lambda x: x.str.encode('ascii', 'ignore').str.decode('ascii')) # Remove emojis
 df = df.replace(r'\/r\/', '', regex=True)
 df = df.replace(r'\/u\/', '', regex=True)
@@ -103,6 +124,7 @@ df = df.replace(r'>', '', regex=True)
 df = df.replace(r'\*\*', '', regex=True).replace(r'\*', '', regex=True)
 df = df.fillna('N/A').replace(r'nan', 'N/A', regex=True)
 df.head(1)
+# -
 
 # ----
 # ----
@@ -110,6 +132,7 @@ df.head(1)
 # ----
 # ----
 
+# +
 sia = SentimentIntensityAnalyzer()
 
 scores = [sia.polarity_scores(item) for item in df['headline']]
@@ -121,6 +144,7 @@ sia_df = sia_df[[cols[0]] + cols[-4:] + cols[1:-4]]
 
 # sia_df.to_csv('sia_df-2.csv', index=False, header=sia_df.columns.values)
 sia_df.head(2)
+# -
 
 # ----
 # ----
@@ -131,6 +155,7 @@ sia_df.head(2)
 df = pd.read_csv('data/sia_df-24.csv', lineterminator='\n')
 df.head(2)
 
+# +
 sia = SentimentIntensityAnalyzer()
 
 comment_compounds = []
@@ -154,11 +179,13 @@ df = compound_df[cols_final]
 # df.to_csv('comment_compound.csv', index=False, header=df.columns.values)
 
 df.head(2)
+# -
 
 # ----
 # ### Mean Comment Compound
 # ----
 
+# +
 num_only = df.drop_duplicates().copy()
 # df.drop_duplicates(inplace=True)
 
@@ -171,11 +198,13 @@ cols = df.columns.to_list()
 df = df[[cols[0]] + [cols[-1]] + cols[1:-1]]
 # df.to_csv('mean-compound.csv', index=False, header=df.columns.values)
 df.head(2)
+# -
 
 # ----
 # ### Classifying the Sentiment
 # ----
 
+# +
 df['headline_label'] = 0
 df['crowd_label'] = 0
 
@@ -197,6 +226,7 @@ cols = ['headline_%', 'crowd_%', 'headline_count', 'crowd_count']
 value_count_df = pd.concat(values, axis=1)
 value_count_df.columns = cols
 value_count_df
+# -
 
 # ----
 # ----
@@ -208,6 +238,7 @@ value_count_df
 # ### Headlines CountVectorizor
 # ----
 
+# +
 from sklearn.feature_extraction.text import CountVectorizer
 
 df = df.apply(lambda x: x.str.lower() if x.dtype == 'object' else x)
@@ -221,6 +252,7 @@ df_cv = df_cv[df_cv.columns.drop(list(df_cv.filter(regex='\d+')))]
 df_cv = df_cv[df_cv.columns.drop(list(df_cv.filter(regex='_+')))]
 
 df_cv.head()
+# -
 
 # ----
 # ----
@@ -228,6 +260,7 @@ df_cv.head()
 # ----
 # ----
 
+# +
 # dict(df_cv.sum(axis=0))
 
 from nltk import ngrams, FreqDist, word_tokenize, sent_tokenize, TweetTokenizer
@@ -242,11 +275,13 @@ df['tokenized_headline'] = df['headline'].apply(lambda x: [x for x in tt.tokeniz
 df['tokenized_headline'] = df['tokenized_headline'].replace(r'\d+', '', regex=True)
 
 df.head(2)
+# -
 
 # ----
 # ### Positive Headlines
 # ----
 
+# +
 fdist = FreqDist()
 
 for value in df[df['headline_label'] == 1]['tokenized_headline']:
@@ -260,11 +295,13 @@ fdist_head_pos = fdist_df[~fdist_df.index.str.contains(r'[0-9]')]
 fdist_head_poss = fdist_head_pos.sort_values(by='frequency', ascending=False).head(30)
 
 fdist_head_poss.head()
+# -
 
 # ----
 # ### Negative Headlines
 # ----
 
+# +
 fdist = FreqDist()
 
 for value in df[df['headline_label'] == -1]['tokenized_headline']:
@@ -278,6 +315,7 @@ fdist_head_neg = fdist_df[~fdist_df.index.str.contains(r'[0-9]')]
 fdist_head_negs = fdist_head_neg.sort_values(by='frequency', ascending=False).head(30)
 
 fdist_head_negs.head()
+# -
 
 # ----
 # ----
@@ -285,6 +323,7 @@ fdist_head_negs.head()
 # ----
 # ----
 
+# +
 comments = df.select_dtypes(include='object').copy()
 
 comments.drop(['headline', 'tokenized_headline'], axis=1, inplace=True)
@@ -292,11 +331,13 @@ comments.drop(['headline', 'tokenized_headline'], axis=1, inplace=True)
 comments['all_comments'] = comments.apply(lambda x: ' '.join(x.astype(str)), axis=1)
 
 comments.head(2)
+# -
 
 # ----
 # ### Comments CountVectorizor
 # ----
 
+# +
 vect = CountVectorizer(input='content', binary=False, ngram_range=(1,1), strip_accents='ascii', stop_words='english')
 cv_ft2 = vect.fit_transform(comments['all_comments'])
 df_cv2 = pd.DataFrame(cv_ft2.toarray(), columns=vect.get_feature_names())
@@ -308,6 +349,7 @@ com = com[com.columns.drop(list(com.filter(regex='_+')))]
 
 com.head()
 
+# +
 stop_words = text.ENGLISH_STOP_WORDS.union(set(stopwords.words('english')))
 tt = TweetTokenizer() 
 
@@ -320,13 +362,16 @@ df['tokenized_comments'] = comments['tokenized_comments']
 
 df.head(2)
 
+# +
 # df.to_pickle('final-df.pkl')
 # df.to_csv('final-df.csv', index=False, header=df.columns.values)
+# -
 
 # ----
 # ### Positive Comments
 # ----
 
+# +
 fdist = FreqDist()
 
 for value in df[df['crowd_label'] == 1]['tokenized_comments']:
@@ -340,11 +385,13 @@ fdist_com_pos = fdist_df[~fdist_df.index.str.contains(r'[0-9]')]
 fdist_com_poss = fdist_com_pos.sort_values(by='frequency', ascending=False).head(30)
 
 fdist_com_poss.head()
+# -
 
 # ----
 # ### Negative Comments
 # ----
 
+# +
 fdist = FreqDist()
 
 for value in df[df['crowd_label'] == -1]['tokenized_comments']:
@@ -358,6 +405,7 @@ fdist_com_neg = fdist_df[~fdist_df.index.str.contains(r'[0-9]')]
 fdist_com_negs = fdist_com_neg.sort_values(by='frequency', ascending=False).head(30)
 
 fdist_com_negs.head()
+# -
 
 # ----
 # ----
@@ -365,6 +413,7 @@ fdist_com_negs.head()
 # ----
 # ----
 
+# +
 fdist_dfs = [fdist_head_poss.reset_index(), fdist_head_negs.reset_index(), fdist_com_poss.reset_index(), fdist_com_negs.reset_index()]
 
 tot_tf = pd.concat(fdist_dfs, axis=1)
@@ -376,8 +425,10 @@ pretty.index = pd.MultiIndex.from_product(iterables)
 pretty = pretty.T
 pretty.head()
 
+# +
 # pretty2 = pd.DataFrame(pretty.to_records())
 # pretty2.to_csv('data/pretty.csv', index=False)
+# -
 
 # ----
 # ----
@@ -385,6 +436,7 @@ pretty.head()
 # ----
 # ----
 
+# +
 freq_dict = {}
 
 freq_dict['head_pos'] = list(zip(pretty['head_pos']['term'], pretty['head_pos']['frequency']))
@@ -395,6 +447,7 @@ freq_dict['com_neg'] = list(zip(pretty['com_neg']['term'], pretty['com_neg']['fr
 words = [term for key, value in freq_dict.items() for term, frequency in value]
 
 Counter(words).most_common(5)
+# -
 
 # ----
 # ----
@@ -402,6 +455,7 @@ Counter(words).most_common(5)
 # ----
 # ----
 
+# +
 from wordcloud import WordCloud
 
 word_cloud = WordCloud(stopwords=stop_words, height=400, width=600, max_font_size=70, colormap='Dark2')
@@ -419,6 +473,7 @@ for idx, (col, tf) in enumerate(pretty.columns[::2]):
     plt.title(col)
 
 plt.show()
+# -
 
 # ----
 # ----
@@ -426,6 +481,7 @@ plt.show()
 # ----
 # ----
 
+# +
 df2 = df.copy()
 df2 = df2.set_index('headline')
 
@@ -440,6 +496,7 @@ top = {c: list(zip(comm[c].sort_values(ascending=False).head(30).index,
 # List of all the words without their count
 words = [t for c in comm.columns for t in [word for (word, count) in top[c]]]
 
+# +
 most_common = Counter(words).most_common()
 
 common_df = pd.DataFrame(most_common).set_index(0).rename(columns={1: 'frequency'}).rename_axis('word')
@@ -449,6 +506,7 @@ top30 = common_df.head(30)
 plt.rcParams['figure.dpi'] = 300
 
 sns.barplot(x=top30['frequency'], y=top30.index, palette='Dark2_r');
+# -
 
 # ----
 # ----
@@ -456,11 +514,14 @@ sns.barplot(x=top30['frequency'], y=top30.index, palette='Dark2_r');
 # ----
 # ----
 
+# +
 unique_count = [np.array(comm[c]).nonzero()[0].shape[0] for c in comm.columns]
 
 unique_df = pd.DataFrame(list(zip(comm.columns.values, unique_count)), columns=['headline', 'unique_count'])
 
 unique_df.sort_values(by='unique_count', ascending=False).head()
+
+# -
 
 # ----
 # ----
@@ -468,6 +529,7 @@ unique_df.sort_values(by='unique_count', ascending=False).head()
 # ----
 # ----
 
+# +
 vect = CountVectorizer(input='content', binary=False, ngram_range=(2,2), strip_accents='ascii', stop_words='english')
 cv_ft2 = vect.fit_transform(comments['all_comments'])
 df_cv2 = pd.DataFrame(cv_ft2.toarray(), columns=vect.get_feature_names())
@@ -477,6 +539,7 @@ com = df_cv2.copy()
 com = com[com.columns.drop(list(com.filter(regex='\d+')))]
 com = com[com.columns.drop(list(com.filter(regex='_+')))]
 
+# +
 df2 = df.copy()
 df2 = df2.set_index('headline')
 
@@ -491,6 +554,7 @@ top = {c: list(zip(comm[c].sort_values(ascending=False).head(30).index,
 # List of all the words without their count
 words = [t for c in comm.columns for t in [word for (word, count) in top[c]]]
 
+# +
 most_common = Counter(words).most_common()
 
 common_df = pd.DataFrame(most_common).set_index(0).rename(columns={1: 'frequency'}).rename_axis('word')
@@ -501,6 +565,7 @@ plt.rcParams['figure.dpi'] = 300
 
 sns.barplot(x=top20['frequency'], y=top20.index, palette='Paired_r')
 plt.title('Comment Bigrams');
+# -
 
 # ----
 # ----
@@ -508,6 +573,7 @@ plt.title('Comment Bigrams');
 # ----
 # ----
 
+# +
 headline = pd.DataFrame(df['tokenized_headline'].astype(str).str.replace(r"'", '', regex=True).replace(r'\,', '', regex=True).replace(r'\[', '', regex=True).replace(r'\]', '', regex=True))
 
 headline['word_count'] = headline['tokenized_headline'].str.split().str.len()
@@ -516,6 +582,7 @@ sns.histplot(headline['word_count'], color='BlueViolet')
 plt.title('Number of Words in Headline')
 plt.ylabel('headline_count')
 plt.xlabel('word_count');
+# -
 
 # ----
 # ----
@@ -523,11 +590,13 @@ plt.xlabel('word_count');
 # ----
 # ----
 
+# +
 headline['avg_word_length'] = headline['tokenized_headline'].str.split().apply(lambda x: sum(map(len, x))/len(x))
 
 sns.histplot(headline['avg_word_length'], color='Gold')
 plt.title('Average Length of Words in Headlines')
 plt.ylabel('headline_count');
+# -
 
 sns.boxplot(headline['word_count'], headline['avg_word_length'])
 plt.title('Word Count vs Average Word Length in Headlines')
@@ -539,6 +608,7 @@ plt.xticks(rotation=-90);
 # ----
 # ----
 
+# +
 sns.boxplot(data=df, x=df.loc[df['crowd_label'] != 0, 'crowd_label'], 
                         y=df.loc[df['crowd_label'] != 0, 'mean'], 
                         palette='Dark2_r', hue='headline_label')
@@ -546,6 +616,7 @@ sns.boxplot(data=df, x=df.loc[df['crowd_label'] != 0, 'crowd_label'],
 plt.xlabel('crowd_sentiment_label')
 plt.ylabel('mean_crowd_sentiment_score')
 plt.title('Mean Sentiment Score of Positive and Negative Comments');
+# -
 
 # ----
 # ----
@@ -553,6 +624,7 @@ plt.title('Mean Sentiment Score of Positive and Negative Comments');
 # ----
 # ----
 
+# +
 import spacy
 
 nlp = spacy.load('en_core_web_md')
@@ -564,6 +636,7 @@ headline['ner'] = headline['headline'].apply(lambda x: [X.label_ for X in nlp(x)
 counter = dict(Counter([y for x in headline['ner'] for y in x]).most_common())
 
 sns.barplot(list(counter.values()), list(counter.keys()), palette='hls');
+# -
 
 # ----
 # #### Meaning of Spacy Named Entity Recognition Labels
@@ -577,11 +650,13 @@ pd.read_html('https://spacy.io/api/annotation')[6]
 # ----
 # ----
 
+# +
 df['profanity'] = df['all_comments'].str.contains('(fuck|shit)').astype(int)
 
 sns.violinplot(data=df, x='profanity', y='mean', palette='CMRmap')
 plt.ylabel('mean_crowd_sentiment_score')
 plt.title('Profanity vs Mean Crowd Sentiment');
+# -
 
 # ----
 # ----
@@ -589,6 +664,7 @@ plt.title('Profanity vs Mean Crowd Sentiment');
 # ----
 # ----
 
+# +
 obj_df = df.select_dtypes('object').drop(['headline', 'tokenized_headline', 'all_comments', 'tokenized_comments'], axis=1)
 
 stop_words = text.ENGLISH_STOP_WORDS.union(set(stopwords.words('english')))
@@ -610,15 +686,17 @@ for y in range(tilted.shape[1]):
 obj_df['avg_word_len'] = length
 
 df['avg_word_len'] = obj_df['avg_word_len']
+# -
 
 # ----
 # ### Average Number of Words, Crowd Label, and Profanity
 # ----
 
+# +
 sns.boxplot(data=df, x='crowd_label', y='avg_word_len', hue='profanity', palette='CMRmap_r')
 
 plt.title('Crowd Label & Profanity Based on Avg. Number of Words in Comments');
 
+# +
 # df.to_csv('data/final-df.csv', index=False, header=df.columns.values)
 # df.to_pickle('data/final-df.pkl')
-

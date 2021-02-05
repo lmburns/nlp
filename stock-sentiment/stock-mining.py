@@ -1,6 +1,19 @@
-#!/usr/bin/env python
-# coding: utf-8
+# ---
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.9.1
+#   kernelspec:
+#     display_name: Python 3
+#     language: python
+#     name: python3
+# ---
 
+# +
 import requests
 from bs4 import BeautifulSoup as bs
 import json
@@ -25,9 +38,11 @@ from plotly.offline import plot, iplot
 pio.templates.default = 'plotly_dark'
 init_notebook_mode(connected=True)
 plt.style.use(['dark_background'])
+# -
 
 # ## Scraping Yahoo Finance
 
+# +
 # Top 50 Stock Tickers
 tickers = gt.get_biggest_n_tickers(50)
 
@@ -54,6 +69,7 @@ for idx, ticker in enumerate(tickers):
     stock_data.append(get_data(ticker))
     time.sleep(2)
     print(f'Finished with number {idx} -- {ticker}')
+# -
 
 with open('11-15-yahoo-stock.json', 'w') as f:
     json.dump(stock_data, f)
@@ -63,6 +79,8 @@ yahoo = pd.DataFrame(stock_data)
 
 # ## Scraping Tingo
 
+# +
+# I'm using Docker to access this website
 local = 'http://localhost:8050/render.html'
 
 news_list = []
@@ -99,14 +117,17 @@ for idx, ticker in enumerate(tickers):
     
     time.sleep(2)
     print(f'Finished number {idx} -- {ticker}')
+# -
 
 # Combine the list of dataframes
 news_df = pd.concat(news_list)
+# Index did not line up, so reset it
 news_df.reset_index(inplace=True, drop=True)
 # Rename column because I'm going to use date for something else
 news_df.rename(columns={'date': 'date_time'}, inplace=True)
 # news_df.to_csv('11-15-tingo-dirty.csv', index=False, header=news_df.columns.values)
 
+# +
 # Create a datetime object to access the day of the week
 news_df['datetime'] = ['2020-' + item.strip() for item in news_df['date_time']] 
 news_df['datetime'] = pd.to_datetime(news_df['datetime'], format='%Y-%b-%d %H:%M:%p')
@@ -118,6 +139,7 @@ news_df.drop('date_time', axis=1, inplace=True)
 # news_df.to_csv('11-15-tingo-stock.csv', index=False, header=news_df.columns.values)
 news_df.head()
 
+# +
 combined_df = pd.merge(news_df, yahoo, on='ticker')
 # Replace commas to convert to an integer
 combined_df['volume'] = combined_df['volume'].replace(r',', '', regex=True).astype(int)
@@ -125,9 +147,11 @@ combined_df['fair_value'] = combined_df['fair_value'].astype('category')
 
 # combined_df.to_csv('11-15-combined-stock.csv', index=False, header=combined_df.columns.values)
 combined_df.head()
+# -
 
 # ## Sentiment Analysis using NLTK
 
+# Initialization
 analyzer = SentimentIntensityAnalyzer()
 # Apply the algorithm to the headline column
 analyzer_scores = [analyzer.polarity_scores(item)['compound'] for item in combined_df['headline']]
@@ -141,6 +165,7 @@ analyzer_news.head()
 
 # ## NLTK - `dayofweek` using Plotly
 
+# +
 # Group by the ticker and the day of the week, creating a multi-index
 mean_day = analyzer_news.groupby(['ticker', 'dayofweek']).mean()
 # Unstack, the innermost index level 'unstacks' across the columns
@@ -153,9 +178,11 @@ sunset = px.colors.sequential.Agsunset
 px.bar(mean_day, barmode='group', color_discrete_sequence=sunset,
       title='Average Week Day Sentiment of Stock Headlines',
       labels={'value': 'Sentiment', 'dayofweek': 'Day of Week'})
+# -
 
 # ## NLTK - `date` using Plotly
 
+# +
 # Filter the dates
 analyzer_filtered = analyzer_news[analyzer_news['date'] > '2020-10-31']
 # Group by the ticker and the date, creating a multi-index
@@ -172,6 +199,7 @@ sunset = px.colors.sequential.Sunsetdark
 px.bar(mean_date, barmode='relative', color_discrete_sequence=sunset,
       title='Average Sentiment of Stock Headlines',
       labels={'value': 'Sentiment', 'date': 'Date'})
+# -
 
 # ## Sentiment Analysis using TextBlob
 
@@ -189,8 +217,10 @@ blob_news.head()
 
 # ### Polarity based on `dayofweek` using Plotly
 
+# +
 # blob_news.to_csv('11-15-tingo-blob.csv', header=blob_news.columns.values, index=False)
 
+# +
 # Group by the ticker and the day of the week, creating a multi-index
 mean_day = blob_news.groupby(['ticker', 'dayofweek']).mean()
 # Unstack, the innermost index level 'unstacks' across the columns
@@ -203,9 +233,11 @@ agg = px.colors.sequential.Aggrnyl
 px.bar(mean_day, barmode='group', color_discrete_sequence=agg,
       title='Average Week Day Polarity of Stock Headlines',
       labels={'value': 'Polarity', 'dayofweek': 'Day of Week'})
+# -
 
 # ### Polarity based on `date` using Plotly
 
+# +
 # Filter the dates
 blob_filtered = blob_news[(blob_news['date'] > '2020-10-31') & (blob_news['date'] < '2020-11-16')]
 # Group by the ticker and the date, creating a multi-index
@@ -222,9 +254,11 @@ rainbow = px.colors.sequential.Rainbow
 px.bar(mean_date, barmode='relative', color_discrete_sequence=rainbow,
       title='Average Polarity of Stock Headlines',
       labels={'value': 'Polarity', 'date': 'Date'})
+# -
 
 # ### Subjectivity based on `dayofweek` using Plotly
 
+# +
 # Group by the ticker and the day of the week, creating a multi-index
 mean_day = blob_news.groupby(['ticker', 'dayofweek']).mean()
 # Unstack, the innermost index level 'unstacks' across the columns
@@ -237,9 +271,11 @@ purp = px.colors.sequential.Purp
 px.bar(mean_day, barmode='group', color_discrete_sequence=purp,
       title='Average Week Day Polarity of Stock Headlines',
       labels={'value': 'Subjectivity', 'dayofweek': 'Day of Week'})
+# -
 
 # ### Subjectivity based on `date` using Plotly
 
+# +
 # Filter the dates
 blob_filtered = blob_news[(blob_news['date'] > '2020-10-31') & (blob_news['date'] < '2020-11-16')]
 # Group by the ticker and the date, creating a multi-index
@@ -257,6 +293,7 @@ px.bar(mean_date, barmode='relative', color_discrete_sequence=sunset,
       title='Average Polarity of Stock Headlines',
       labels={'value': 'Subjectivity', 'date': 'Date'})
 
+# +
 # Group by the ticker and the day of the week, creating a multi-index
 mean_day = blob_news.groupby(['ticker', 'date']).mean()
 # Unstack, the innermost index level 'unstacks' across the columns
@@ -266,4 +303,6 @@ mean_day = mean_day.xs('polarity', axis=1).T
 
 px.box(mean_day, title='Distribution of the Polarity of Stock Headlines',
       labels={'value': 'Polarity'})
+# -
+
 
