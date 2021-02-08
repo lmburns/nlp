@@ -24,6 +24,7 @@ import ssl
 
 from bs4 import BeautifulSoup as bs
 from fn import F, _
+from matplotlib import test
 import numpy as np
 import pandas as pd
 import requests
@@ -69,7 +70,7 @@ soup = bs(r.text, "html.parser")
 #### └─────────────────────────────────────────────────┘
 
 # +
-### Title, link, rating
+# Title, link, rating
 tit = [t.get_text() for t in soup.select("h2 span a")]
 
 # Title of post
@@ -83,8 +84,12 @@ dt = [datetime.strptime(d, "%A %B %d, %Y %I:%M%p") for d in date]
 # External link to post
 elink = [l.text.strip() for l in soup.select("h2 span span")]
 
-# Votes on post
-votes = [v.text.strip() for v in soup.find_all("span", class_="comment-bubble")]
+# Comments on post
+comments = (
+    [x.get_text() for x in soup.select("span.comment-bubble a")]
+    | p(np.array)
+    | px.astype("int")
+)
 
 # Category of post
 cat = [b.get("alt") for b in soup.find_all("img")] | p(list, p(filter, None, px))
@@ -115,87 +120,127 @@ df = pd.DataFrame(
         "title": title,
         "date": dt,
         "exlink": elink,
+        "comments": comments,
         "category": category,
         "user": user,
         "popular": pop,
     }
 )
 
+
 tabloo.show(df)
 # from operator import itemgetter
 # df['user'] = df['user'] | p(map, p(itemgetter(0)), px) | p(list)
 
-
 df["user"] = df["user"] | p(chain.from_iterable, px) | p(list)
 df["exlink"] = df["exlink"] | px.str.replace(r"\(|\)", "", regex=True)
+# -
 
 #### ┌─────────────────────────────────────────────────┐
-#### │ Scraping more than one page                     │
+#### │ Functions for scraping more than one page       │
 #### └─────────────────────────────────────────────────┘
 
 # +
+import time
+
 def get_page(url):
     response = requests.get(url)
     if not response.ok:
         print("Server Responded: ", response.status_code)
     else:
         soup = bs(response.text, "lxml")
+        time.sleep(3)
     return soup
 
 
 def get_data(soup):
     try:
-        title = [
-            j for i in soup.find_all("span", class_="story-title") for j in i.find("a")
-        ]
+        title = [j for i in soup.find_all("span", class_="story-title") for j in i.find("a")]
     except:
         title = ""
 
     try:
-        dated = [
-            d.get_text(" ", strip=True) for d in soup.select("span.story-byline time")
-        ]
+        dated = [d.get_text(" ", strip=True) for d in soup.select("span.story-byline time")]
         date = [re.sub("on|@", "", x).strip() for x in dated]
         dt = [datetime.strptime(d, "%A %B %d, %Y %I:%M%p") for d in date]
     except:
         dt = ""
 
     try:
-        elink = [l.text.strip() for l in soup.select("h2 span span")]
+        pattern = re.compile(r"\([a-z0-9.\-]+[.](\w+)\)")
+        curls = {}
+
+        for idx, u in enumerate(ex):
+            if not pattern.search(u):
+                curls[idx] = "Empty"
+            else:
+                curls[idx] = pattern.search(u).group()
+
+        elink = list(curls.values())
     except:
         elink = ""
 
     try:
-        votes = [v.text.strip() for v in soup.find_all("span", class_="comment-bubble")]
+        comments = (
+            [x.get_text() for x in soup.select("span.comment-bubble a")]
+            | p(np.array)
+            | px.astype("int"))
     except:
-        votes = ""
+        comments = ""
 
     try:
-        cat = [b.get("alt") for b in soup.find_all("img")] | p(
-            list, p(filter, None, px)
-        )
-        category = [x.replace("Icon", "") for x in cat] | p(filter, None) | p(list)
+        cat = ([b.get("alt") for b in soup.find_all("img")]
+              | p(list, p(filter, None, px)))
+        category = ([x.replace("Icon", "") for x in cat]
+                    | p(filter, None)
+                    | p(list))
     except:
         category = ""
 
     try:
-        user = [
-            u.get_text(" ", strip=True).replace("\n", "").replace("\t", "")
-            for u in soup.select("span.story-byline")
-        ]
-        user = [
-            " ".join(a.split()) | p(re.findall, r"Postedby\s(\w+)", px) for a in user
-        ]
+        user = [u.get_text(" ", strip=True).replace("\n", "").replace("\t", "")
+                for u in soup.select("span.story-byline")]
+        user = [" ".join(a.split())
+                | p(re.findall, r"Postedby\s(\w+)", px) for a in user]
     except:
         user = ""
 
     try:
-        pop = [
-            re.findall("'([a-zA-Z0-9,\s]*)'", prop["onclick"]) | px[1]
-            for prop in soup.find_all("span", attrs={"alt": "Popularity"})
-        ]
+        pop = [re.findall("'([a-zA-Z0-9,\s]*)'", prop["onclick"]) | px[1]
+            for prop in soup.find_all("span", attrs={"alt": "Popularity"})]
     except:
         pop = ""
 
+    temp = pd.DataFrame(
+        {
+            "title": title,
+            "date": dt,
+            "exlink": elink,
+            "comments": comments,
+            "category": category,
+            "user": user,
+            "popular": pop
+        }
+    )
+
+    return temp
+# -
+
+#### ┌─────────────────────────────────────────────────┐
+#### │ Scraping more than one page                     │
+#### └─────────────────────────────────────────────────┘
 
 # +
+from random import sample
+
+base_url = "https://slashdot.org/?page="
+urls = [base_url + str(i) for i in range(1, 100)]
+test_u = urls | p(sample, 2)
+
+
+data = [get_data(get_page(x)) for x in test_u] | p(pd.concat, px)
+
+
+
+data
+# -
